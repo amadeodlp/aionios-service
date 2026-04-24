@@ -26,9 +26,9 @@ This Java-based backend provides REST APIs and services that support the AIONIOS
 
 ### Prerequisites
 
-- JDK 11 or later
-- Maven or Gradle
-- MySQL/PostgreSQL database
+- JDK 17 or later
+- Maven 3.6+
+- MySQL/PostgreSQL database (H2 in-memory database used by default for development)
 - IPFS node (local or remote)
 
 ### Installation
@@ -43,25 +43,39 @@ cd AIONIOS/backend
 
 3. Build the application
 ```bash
-./mvnw clean package
-# or with gradle
-./gradlew build
+mvn clean package
 ```
 
 4. Run the application
 ```bash
-./mvnw spring-boot:run
-# or with gradle
-./gradlew bootRun
+mvn spring-boot:run
 ```
 
 ## API Endpoints
 
 ### Capsule Management
 - `POST /api/capsules` - Create a new time capsule
-- `GET /api/capsules` - List user's time capsules
 - `GET /api/capsules/{id}` - Get capsule details
+- `GET /api/capsules/blockchain/{blockchainId}` - Get capsule by blockchain ID
 - `PUT /api/capsules/{id}` - Update capsule (if allowed)
+- `PATCH /api/capsules/{id}/status` - Update capsule status
+- `POST /api/capsules/{id}/open` - Open a capsule
+
+### User Capsule Queries
+- `GET /api/capsules/creator/{address}` - List capsules created by an address
+- `GET /api/capsules/recipient/{address}` - List capsules sent to an address
+- `GET /api/capsules/address/{address}` - List all capsules associated with an address
+
+### Explore
+- `GET /api/capsules/explore/popular` - Most-viewed capsules (query param: `limit`, default 10)
+- `GET /api/capsules/explore/featured` - Manually curated featured capsules
+- `GET /api/capsules/explore/recent` - Recently opened capsules (query param: `limit`, default 10)
+- `GET /api/capsules/explore/subscribed` - Most subscribed sealed capsules (query param: `limit`, default 10)
+
+### Engagement
+- `POST /api/capsules/{id}/view` - Increment view count
+- `POST /api/capsules/{id}/share` - Increment share count
+- `POST /api/capsules/{id}/subscribe` - Subscribe to a capsule (query param: `userAddress`)
 
 ### User Management
 - `POST /api/users` - Register new user
@@ -80,20 +94,29 @@ The application can be configured using the following properties:
 # Server configuration
 server.port=8080
 
-# Database configuration
+# Database configuration (H2 used by default for development)
 spring.datasource.url=jdbc:mysql://localhost:3306/aionios
 spring.datasource.username=username
 spring.datasource.password=password
 
-# Blockchain configuration
-blockchain.network=rinkeby
-blockchain.contract.address=0x...
-blockchain.web3.endpoint=https://rinkeby.infura.io/v3/your-infura-id
+# Web3j / Blockchain configuration
+web3j.client-address=https://mainnet.infura.io/v3/your-infura-id
+web3j.network-id=1
+
+# Contract address (populate after deployment)
+time.capsule.contract.address=0x...
 
 # IPFS configuration
 ipfs.node.host=localhost
 ipfs.node.port=5001
-ipfs.gateway.url=https://ipfs.io/ipfs/
+
+# JWT configuration
+jwt.secret=your-secret-key-min-32-chars
+jwt.expiration=86400000
+
+# Capsule scheduler
+capsule.scheduler.enabled=true
+capsule.scheduler.cron=0 */10 * * * *
 ```
 
 ## Blockchain Integration
@@ -104,6 +127,8 @@ The backend integrates with the Ethereum blockchain to:
 - Verify transaction status
 - Interact with oracles
 
+A mock blockchain service (`MockBlockchainService`) is active by default for local development. The real Web3j implementation (`Web3jBlockchainService`) is wired in once a deployed contract address is provided.
+
 ## IPFS Integration
 
 For large content storage, the backend:
@@ -111,6 +136,8 @@ For large content storage, the backend:
 - Stores content hashes on-chain
 - Retrieves content from IPFS when needed
 - Manages pinning services for persistence
+
+A mock IPFS service (`MockIPFSServiceImpl`) is active by default for local development, storing content in memory. The real IPFS implementation (`IPFSServiceImpl`) connects to a running IPFS node.
 
 ## Contributing
 
